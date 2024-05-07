@@ -24,12 +24,11 @@ func size() int {
 		_, e := fmt.Fscanln(os.Stdin, &answer) // сюда еще добавить ограничение по цифре по range
 		if e != nil {
 			fmt.Println("Ошибка:", e)
-			if yesno("Попробовать еще раз:") { // здесь можно ответить и нет, тогда уходим в else
-				continue
-			} else {
-				fmt.Println("... на нет и спроса нет, тогда 8")
+			if !yesno("Попробовать еще раз") { // здесь можно ответить и нет, тогда уходим в else
+				fmt.Println("На нет и суда нет, тогда 8")
 				return 8
 			}
+			continue
 		}
 		break
 	}
