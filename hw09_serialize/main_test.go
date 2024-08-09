@@ -29,7 +29,7 @@ func TestMarshallerJSON(t *testing.T) {
 				Author:  "Author",
 				Updated: time.Date(2019, 0o1, 0o1, 0o1, 0, 0, 0, time.UTC),
 			},
-			ExpectedResult: "{\"id\":1234567890,\"year\":2024,\"size\":101,\"rate\":4.1,\"title\":\"Title\",\"author\":\"Author\"}", //nolint:lll
+			ExpectedResult: "{\"updated\":1546304400,\"id\":1234567890,\"year\":2024,\"size\":101,\"rate\":4.1,\"title\":\"Title\",\"author\":\"Author\"}", //nolint:lll
 		},
 	}
 	for _, j := range cases {
@@ -60,8 +60,7 @@ func TestMarshallerProto(t *testing.T) {
 			Title:  "Title",
 			Author: "Author",
 		},
-		ExpectedResult: "{\"id\":1234567890,\"year\":2024,\"size\":101," +
-			"\"rate\":4.1,\"title\":\"Title\",\"author\":\"Author\"}",
+		ExpectedResult: "Id:1234567890 Year:2024 Size:101 Rate:4.1 Title:\"Title\" Author:\"Author\"",
 	}
 	t.Run(cases.TestName, func(t *testing.T) {
 		protoResult, err := proto.Marshal(&cases.TestMsg)
