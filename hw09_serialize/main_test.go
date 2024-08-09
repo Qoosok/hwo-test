@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
-	book "github.com/Qoosok/hwo_test/hw09_serialize/book"
+	"github.com/Qoosok/hwo_test/hw09_serialize/book"
+
+	"github.com/Qoosok/hwo_test/hw09_serialize/book"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
