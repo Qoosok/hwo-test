@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Qoosok/hwo_test/hw09_serialize/book"
+	book "github.com/Qoosok/hwo_test/hw09_serialize/book"
 	"google.golang.org/protobuf/proto"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
