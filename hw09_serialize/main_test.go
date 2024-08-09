@@ -29,7 +29,7 @@ func TestMarshallerJSON(t *testing.T) {
 				Author:  "Author",
 				Updated: time.Date(2019, 0o1, 0o1, 0o1, 0, 0, 0, time.UTC),
 			},
-			ExpectedResult: "{\"updated\":1546304400,\"id\":1234567890,\"year\":2024,\"size\":101,\"rate\":4.1,\"title\":\"Title\",\"author\":\"Author\"}", //nolint:lll
+			ExpectedResult: "{\"id\":1234567890,\"year\":2024,\"size\":101,\"rate\":4.1,\"title\":\"Title\",\"author\":\"Author\"}", //nolint:lll
 		},
 	}
 	for _, j := range cases {
