@@ -1,24 +1,14 @@
 package main
 
 import (
-	"crypto/rand"
 	"fmt"
-	"math"
-	"math/big"
+	"math/rand"
 	"time"
 )
 
 func readData(s string) map[string]float64 {
 	d := make(map[string]float64, 1)
-
-	f, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
-	if err != nil {
-		fmt.Println("error:", err)
-		panic(err)
-	}
-	randFloat, _ := f.Float64()
-	d[s] = randFloat * 100
-
+	d[s] = rand.Float64() * 100 //nolint:gosec
 	return d
 }
 
