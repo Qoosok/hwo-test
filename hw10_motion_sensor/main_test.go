@@ -46,5 +46,5 @@ func TestAverageSensorData(t *testing.T) {
 	for i := range a {
 		assert.Equal(t, r, i)
 	}
-	// time.Sleep(time.Minute)
+
 }
