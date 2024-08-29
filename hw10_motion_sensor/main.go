@@ -1,4 +1,4 @@
-// fixed homework
+// fixed home_work_10
 package main
 
 import (
