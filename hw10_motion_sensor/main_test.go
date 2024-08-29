@@ -1,50 +1,35 @@
 package main
 
 import (
-	"sync"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func TestReadSensorData(t *testing.T) {
-	c := make(chan float64, 10)
-	v := []float64{1.0, 2.5, 3.7, 4.2, 5.3, 6.8, 7.1, 8.6, 9.0, 10.5}
-	r := make([]float64, 0)
-	w := sync.WaitGroup{}
-	w.Add(1)
-	go func() {
-		defer close(c)
-		for _, j := range v {
-			c <- j
-		}
-		w.Done()
-	}()
-	for i := range c {
-		r = append(r, i)
+func TestCalculateMean(t *testing.T) {
+	values := []int{10, 20, 30, 40, 50, 60, 70, 80, 90, 100}
+	expectedMean := 55.0
+
+	mean := calculateMean(values)
+	if mean != expectedMean {
+		t.Errorf("Expected mean %.2f but got %.2f", expectedMean, mean)
 	}
-	w.Wait()
-	assert.Equal(t, v, r)
 }
 
-func TestAverageSensorData(t *testing.T) {
-	c := make(chan float64)
-	v := []float64{1.0, 2.5, 3.7, 4.2, 5.3, 6.8, 7.1, 8.6, 9.0, 10.5}
-	r := 5.87
-	w := sync.WaitGroup{}
-	w.Add(1)
+func TestProcess(t *testing.T) {
+	dataChan := make(chan int)
+	processedChan := make(chan float64)
+	go process(dataChan, processedChan)
+
 	go func() {
-		defer w.Done()
-		defer close(c)
-		for _, j := range v {
-			// fmt.Println(s)
-			c <- j
+		values := []int{10, 20, 30, 40, 50, 60, 70, 80, 90, 100}
+		for _, v := range values {
+			dataChan <- v
 		}
+		close(dataChan)
 	}()
-	a := averageSensorData(c)
-	w.Wait()
-	for i := range a {
-		assert.Equal(t, r, i)
+
+	expectedMean := 55.0
+	mean := <-processedChan
+	if mean != expectedMean {
+		t.Errorf("Expected mean %.2f but got %.2f", expectedMean, mean)
 	}
-	// time.Sleep(time.Minute)
 }
