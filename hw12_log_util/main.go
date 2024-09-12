@@ -1,109 +1,192 @@
-// hw12_fixing
 package main
 
 import (
 	"bufio"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strings"
+	"unicode"
+
+	"github.com/pkg/errors"
 )
 
-func parseFlags() (filePath, logLevel, outputPath string, err error) {
-	filePath = os.Getenv("LOG_ANALYZER_FILE")
-	logLevel = os.Getenv("LOG_ANALYZER_LEVEL")
-	outputPath = os.Getenv("LOG_ANALYZER_OUTPUT")
+type color string
 
-	flag.StringVar(&filePath, "file", filePath, "Path to the log file")
-	flag.StringVar(&logLevel, "level", logLevel, "Log level to analyze (default: 'info')")
-	flag.StringVar(&outputPath, "output", outputPath, "Path to the output file")
+const (
+	ColorBlack  color = "\u001b[30m"
+	ColorRed    color = "\u001b[31m"
+	ColorGreen  color = "\u001b[32m"
+	ColorYellow color = "\u001b[33m"
+	ColorBlue   color = "\u001b[34m"
+	ColorReset  color = "\u001b[0m"
+)
 
-	flag.Parse()
+type logLevel int
 
-	if filePath == "" {
-		return "", "", "", fmt.Errorf(
-			"log file path must be specified either via -file flag or LOG_ANALYZER_FILE environment variable")
-	}
+const (
+	_ logLevel = iota
+	ERROR
+	WARN
+	INFO
+	TRACE
+	EVENT
+)
 
-	if logLevel == "" {
-		logLevel = "info"
-	}
-
-	return filePath, logLevel, outputPath, nil
+type LogLevel struct {
+	Value logLevel
 }
 
-func processLogFile(filePath, logLevel string) (map[string]int, error) {
-	levelCounts := map[string]int{
-		"info":    0,
-		"warning": 0,
-		"error":   0,
+func (l *LogLevel) setLevel(s string) {
+	s = strings.ToLower(s)
+	switch s {
+	case "error", "err":
+		l.Value = ERROR
+	case "warning", "warn":
+		l.Value = WARN
+	case "info": //nolint:goconst
+		l.Value = INFO
+	case "trace", "debug":
+		l.Value = TRACE
 	}
+}
 
-	file, err := os.Open(filePath)
+func (l LogLevel) String() string {
+	switch l.Value {
+	case ERROR:
+		return "error"
+	case WARN:
+		return "warning"
+	case INFO:
+		return "info"
+	case TRACE:
+		return "trace"
+	case EVENT:
+		return "event"
+	default:
+		return "unknown"
+	}
+}
+
+func readLogFile(p string) ([]string, error) {
+	f, err := os.Open(p)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to open the log file")
 	}
-	defer file.Close()
+	defer f.Close()
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, logLevel) {
-			levelCounts[logLevel]++
-		}
-	}
+	var rawLog []string
 
-	scannerErr := scanner.Err()
-	if scannerErr != nil {
-		return nil, scannerErr
+	b := bufio.NewScanner(f)
+	for b.Scan() {
+		rawLog = append(rawLog, b.Text())
 	}
 
-	return levelCounts, nil
+	if err = b.Err(); err != nil {
+		return nil, errors.Wrap(err, "Failed to read the file content")
+	}
+	return rawLog, nil
 }
 
-func generateStatistics(levelCounts map[string]int) string {
-	var result strings.Builder
-	for level, count := range levelCounts {
-		fmt.Fprintf(&result, "%s: %d\n", level, count)
+func outputLogFile(r []string, p string) error {
+	f, err := os.Create(p)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create the output file")
 	}
-	return result.String()
-}
+	defer f.Close()
+	b := bufio.NewWriter(f)
 
-func outputResults(statistics, outputPath string) error {
-	if outputPath != "" {
-		file, err := os.Create(outputPath)
+	defer b.Flush()
+	for _, j := range r {
+		_, err = b.WriteString(j)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed to write to the output file")
 		}
-		defer file.Close()
-		_, err = file.WriteString(statistics)
-		if err != nil {
-			return err
-		}
-	} else {
-		fmt.Print(statistics)
 	}
 	return nil
 }
 
+func countLogLevels(r []string, l LogLevel) int {
+	c := 0
+	for _, j := range r {
+		f := func(c rune) bool {
+			return unicode.IsSpace(c) || c == ':' // нюанс лог файла из примера "WARNING:.."
+		}
+		w := strings.FieldsFunc(j, f)[4]
+
+		if l.String() == strings.ToLower(w) {
+			c++
+		}
+	}
+	return c
+}
+
 func main() {
-	filePath, logLevel, outputPath, err := parseFlags()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	var (
+		filePath, levelStr, output string
+		outputText                 []string
+	)
+
+	env := map[string]string{"file": "LOG_ANALYZER_FILE", "level": "LOG_ANALYZER_LEVEL", "output": "LOG_ANALYZER_OUTPUT"}
+
+	verbose := flag.Bool("verbose", false, "verbose output")
+	useColor := flag.Bool("color", false, "display colorized output")
+	flag.StringVar(&filePath, "file", os.Getenv(env["file"]), "path to log file to parse, mandotary")
+	flag.StringVar(&levelStr, "level", os.Getenv(env["level"]), "log level \"error\", \"warn\", \"trace\" for details, defaults to statistics \"info\" level") //nolint:lll
+	flag.StringVar(&output, "output", os.Getenv(env["output"]), "path to file with output parsed log")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stdout, "Usage: [LOG_ANALYZER_FILE=example.log|LOG_ANALYZER_LEVEL=error|LOG_ANALYZER_OUTPUT=output.log] %s [OPTIONS]\n", os.Args[0]) //nolint:lll
+		fmt.Fprintf(os.Stdout, "Options:\n")
+		flag.VisitAll(func(f *flag.Flag) {
+			fmt.Fprintf(os.Stdout, "  -%s: %s\n", f.Name, f.Usage)
+		})
+	}
+	flag.Parse()
+
+	if filePath == "" {
+		flag.Usage()
+		os.Exit(0)
 	}
 
-	levelCounts, err := processLogFile(filePath, logLevel)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	flag.Parse()
+
+	if levelStr == "" {
+		levelStr = "info"
 	}
 
-	statistics := generateStatistics(levelCounts)
+	level := &LogLevel{}
+	level.setLevel(levelStr)
 
-	err = outputResults(statistics, outputPath)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	if *verbose {
+		for i, j := range os.Args {
+			fmt.Println("parsed arguments:", i, j)
+		}
+		fmt.Println("file:", filePath)
+		fmt.Println("level:", levelStr)
+		fmt.Println("output:", output)
 	}
+
+	outputLog, err := readLogFile(filePath)
+	if err != nil {
+		log.Fatalf("whoops, check the file name: %s", err)
+	}
+
+	result := countLogLevels(outputLog, *level)
+
+	outputText = append(outputText, fmt.Sprintf("Found total messages with log level "+
+		"\"%s\": %d of lines %d in file \"%s\"",
+		level.String(), result, len(outputLog), filePath))
+
+	if len(output) > 0 {
+		outputLogFile(outputText, output)
+	} else {
+		if *useColor {
+			print(string(ColorBlue))
+		}
+		for _, j := range outputText {
+			fmt.Printf("%s\n", j)
+		}
+	}
+	print(string(ColorReset))
 }
